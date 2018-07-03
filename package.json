@@ -1,0 +1,44 @@
+{
+  "name": "typedtest",
+  "displayName": "TypedTest",
+  "description": "Testing made simple.",
+  "version": "0.0.1",
+  "publisher": "tsteinberger",
+  "engines": {
+    "vscode": "^1.24.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact"
+  ],
+  "main": "./out/extension",
+  "contributes": {
+    "commands": [
+      {
+        "command": "extension.watchTests",
+        "title": "Watch Tests"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "test": "npm run compile && node ./node_modules/vscode/bin/test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^2.2.42",
+    "@types/node": "^7.0.43",
+    "typescript": "^2.5.3",
+    "vscode": "^1.1.5"
+  },
+  "dependencies": {
+    "@typed/test": "7.0.7"
+  }
+}
