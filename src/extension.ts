@@ -2,8 +2,8 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode'
+import { sync as resolve } from 'resolve'
 import {
-  watchTestMetadata,
   TestRunner,
   TestMetadata,
   resultsToString,
@@ -12,14 +12,12 @@ import {
   getTestResults,
   JsonResults,
   TestStats,
-  findTestMetadata,
   findTsConfig,
   findTypedTestConfig,
   Logger,
   Results,
   TestResult,
-  NodeMetadata,
-  skip
+  NodeMetadata
 } from '@typed/test'
 import { strip } from 'typed-colors'
 import { join } from 'path'
@@ -50,7 +48,8 @@ const dispose = (d: vscode.Disposable) => d.dispose()
 export function activate(context: vscode.ExtensionContext) {
   const cwd = vscode.workspace.rootPath
   let config = setup(cwd)
-
+  const { watchTestMetadata, findTestMetadata } = require(resolve('@typed/test', { basedir: cwd }))
+  
   const runTestsDisposable = vscode.commands.registerCommand('TypedTest.runTests', async () => {
     config.dispose()
     config = setup(cwd)
