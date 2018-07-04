@@ -269,9 +269,9 @@ type MarkerSpec = {
 
 function setMarker({ editor, stats, line, main }: MarkerSpec): vscode.Disposable {
   const lineIndex = line - 1
-  const passingIcon = join(__dirname, '../src/passing-test.png')
-  const failingIcon = join(__dirname, '../src/failing-test.png')
-  const skippedIcon = join(__dirname, '../src/skipped-test.png')
+  const passingIcon = join(__dirname, '../images/passing-test.png')
+  const failingIcon = join(__dirname, '../images/failing-test.png')
+  const skippedIcon = join(__dirname, '../images/skipped-test.png')
   const passingOrSkipped = main
     ? stats.passing > 0
       ? passingIcon
