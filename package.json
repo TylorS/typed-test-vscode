@@ -3,7 +3,7 @@
   "displayName": "TypedTest",
   "description": "Testing made simple.",
   "version": "0.0.1",
-  "publisher": "tsteinberger",
+  "publisher": "tylors",
   "engines": {
     "vscode": "^1.24.0"
   },
@@ -12,9 +12,7 @@
   ],
   "activationEvents": [
     "onLanguage:typescript",
-    "onLanguage:typescriptreact",
-    "onLanguage:javascript",
-    "onLanguage:javascriptreact"
+    "onLanguage:typescriptreact"
   ],
   "main": "./out/extension",
   "contributes": {
@@ -45,6 +43,7 @@
     "@types/mocha": "^2.2.42",
     "@types/node": "^7.0.43",
     "typescript": "^2.5.3",
+    "vsce": "1.43.0",
     "vscode": "^1.1.5"
   },
   "dependencies": {
