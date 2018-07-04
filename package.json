@@ -2,7 +2,7 @@
   "name": "typedtest",
   "displayName": "TypedTest",
   "description": "Testing made simple.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "tylors",
   "engines": {
     "vscode": "^1.24.0"
