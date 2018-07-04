@@ -139,9 +139,9 @@ function setup(cwd: string, previousResults: Results | null = null) {
     getTestStats
   )
   const contextDisposables = [
-    vscode.window.onDidChangeActiveTextEditor(editor => displayAndAdd(editor)),
+    vscode.window.onDidChangeActiveTextEditor(editor => editor && displayAndAdd(editor)),
     vscode.window.onDidChangeVisibleTextEditors(editors =>
-      editors.forEach(editor => displayAndAdd(editor))
+      editors.forEach(editor => editor && displayAndAdd(editor))
     )
   ]
 
@@ -167,7 +167,7 @@ function setup(cwd: string, previousResults: Results | null = null) {
     codeConsole.append(resultsToString(cwd, results))
 
     disposables.forEach(dispose)
-    vscode.window.visibleTextEditors.forEach(displayAndAdd)
+    vscode.window.visibleTextEditors.forEach(editor => editor && displayAndAdd(editor))
   }
 
   return {
@@ -178,7 +178,6 @@ function setup(cwd: string, previousResults: Results | null = null) {
     handleMetadata,
     fileGlobs,
     compilerOptions,
-    displayAndAdd,
     dispose: () => {
       disposables.forEach(dispose)
       contextDisposables.forEach(dispose)
