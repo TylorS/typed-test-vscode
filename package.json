@@ -20,8 +20,16 @@
   "contributes": {
     "commands": [
       {
-        "command": "extension.watchTests",
-        "title": "Watch Tests"
+        "command": "TypedTest.watchTests",
+        "title": "Typed Test: Watch Tests"
+      },
+      {
+        "command": "TypedTest.runTests",
+        "title": "Typed Test: Run Tests"
+      },
+      {
+        "command": "TypedTest.stopWatching",
+        "title": "TypedTest: Stop Watching Tests"
       }
     ]
   },
@@ -33,12 +41,14 @@
     "test": "npm run compile && node ./node_modules/vscode/bin/test"
   },
   "devDependencies": {
+    "@types/glob": "5.0.35",
     "@types/mocha": "^2.2.42",
     "@types/node": "^7.0.43",
     "typescript": "^2.5.3",
     "vscode": "^1.1.5"
   },
   "dependencies": {
-    "@typed/test": "7.0.7"
+    "@typed/test": "7.0.7",
+    "glob": "7.1.2"
   }
 }
