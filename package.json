@@ -48,7 +48,7 @@
     "vscode": "^1.1.5"
   },
   "dependencies": {
-    "@typed/test": "7.0.7",
+    "@typed/test": "7.0.8",
     "glob": "7.1.2"
   }
 }

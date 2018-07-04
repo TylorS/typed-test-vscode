@@ -17,9 +17,9 @@
     "167" "0.36.0"
     assertion-error-diff "^1.0.0"
 
-"@typed/test@7.0.7":
-  version "7.0.7"
-  resolved "https://registry.yarnpkg.com/@typed/test/-/test-7.0.7.tgz#c7a356846ad8cae237b9877e45c0a82a4ebf5706"
+"@typed/test@7.0.8":
+  version "7.0.8"
+  resolved "https://registry.yarnpkg.com/@typed/test/-/test-7.0.8.tgz#1429b10e2896461e444d2f98ddd0525b34233181"
   dependencies:
     "@typed/assertions" "1.1.0"
     clear-require "2.0.0"
@@ -30,6 +30,8 @@
     openport "0.0.5"
     portfinder "1.0.13"
     puppeteer "1.5.0"
+    resolve "1.8.1"
+    source-map-support "0.5.6"
     sourcemapped-stacktrace "1.1.8"
     tempy "0.2.1"
     ts-loader "4.4.2"
@@ -2776,6 +2778,10 @@ path-key@^2.0.0:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/path-key/-/path-key-2.0.1.tgz#411cadb574c5a140d3a4b1910d40d80cc9f40b40"
 
+path-parse@^1.0.5:
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/path-parse/-/path-parse-1.0.5.tgz#3c1adf871ea9cd6c9431b6ea2bd74a0ff055c4c1"
+
 path-to-regexp@0.1.7:
   version "0.1.7"
   resolved "https://registry.yarnpkg.com/path-to-regexp/-/path-to-regexp-0.1.7.tgz#df604178005f522f15eb4490e7247a1bfaa67f8c"
@@ -3120,6 +3126,12 @@ resolve-url@^0.2.1:
   version "0.2.1"
   resolved "https://registry.yarnpkg.com/resolve-url/-/resolve-url-0.2.1.tgz#2c637fe77c893afd2a663fe21aa9080068e2052a"
 
+resolve@1.8.1:
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.8.1.tgz#82f1ec19a423ac1fbd080b0bab06ba36e84a7a26"
+  dependencies:
+    path-parse "^1.0.5"
+
 ret@~0.1.10:
   version "0.1.15"
   resolved "https://registry.yarnpkg.com/ret/-/ret-0.1.15.tgz#b8a4825d5bdb1fc3f6f53c2bc33f81388681c7bc"
@@ -3307,7 +3319,7 @@ source-map-resolve@^0.5.0:
     source-map-url "^0.4.0"
     urix "^0.1.0"
 
-source-map-support@^0.5.0, source-map-support@^0.5.6:
+source-map-support@0.5.6, source-map-support@^0.5.0, source-map-support@^0.5.6:
   version "0.5.6"
   resolved "https://registry.yarnpkg.com/source-map-support/-/source-map-support-0.5.6.tgz#4435cee46b1aab62b8e8610ce60f788091c51c13"
   dependencies:
