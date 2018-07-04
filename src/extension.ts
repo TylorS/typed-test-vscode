@@ -45,11 +45,20 @@ const logger: Logger = {
 
 const dispose = (d: vscode.Disposable) => d.dispose()
 
+function findTypedTest(cwd: string) {
+  try {
+    resolve('@typed/test', { basedir: cwd })
+  } catch {
+    return join(cwd, 'lib/index.js')
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   const cwd = vscode.workspace.rootPath
   let config = setup(cwd)
-  const { watchTestMetadata, findTestMetadata } = require(resolve('@typed/test', { basedir: cwd }))
-  
+  const typedTestPath = findTypedTest(cwd)
+  const { watchTestMetadata, findTestMetadata } = require(typedTestPath)
+
   const runTestsDisposable = vscode.commands.registerCommand('TypedTest.runTests', async () => {
     config.dispose()
     config = setup(cwd)
