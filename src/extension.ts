@@ -4,7 +4,6 @@
 import * as vscode from 'vscode'
 import { sync as resolve } from 'resolve'
 import {
-  TestRunner,
   TestMetadata,
   resultsToString,
   statsToString,
@@ -12,10 +11,7 @@ import {
   getTestResults,
   JsonResults,
   TestStats,
-  findTsConfig,
-  findTypedTestConfig,
   Logger,
-  Results,
   TestResult,
   NodeMetadata
 } from '@typed/test'
@@ -49,7 +45,7 @@ function findTypedTest(cwd: string) {
   try {
     // Users must have @typed/test installed locally.
     return resolve('@typed/test', { basedir: cwd })
-  } catch  {
+  } catch {
     // For developing @typed/test extension
     return join(cwd, 'lib/index.js')
   }
@@ -57,14 +53,20 @@ function findTypedTest(cwd: string) {
 
 export function activate(context: vscode.ExtensionContext) {
   const cwd = vscode.workspace.rootPath
-  let config = setup(cwd)
   const typedTestApiPath = findTypedTest(cwd).replace('index.js', 'api.js')
-  const { watchTestMetadata, findTestMetadata } = require(typedTestApiPath)
+  const {
+    watchTestMetadata,
+    findTestMetadata,
+    TestRunner,
+    findTsConfig,
+    findTypedTestConfig
+  }: typeof import('@typed/test/lib/api') = require(typedTestApiPath)
+  let config = setup(cwd, TestRunner, findTsConfig, findTypedTestConfig)
   logger.log('Typed Test: Activated!')
 
   const runTestsDisposable = vscode.commands.registerCommand('TypedTest.runTests', async () => {
     config.dispose()
-    config = setup(cwd)
+    config = setup(cwd, TestRunner, findTsConfig, findTypedTestConfig)
 
     const {
       fileGlobs,
@@ -80,7 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const watchTestsDisposable = vscode.commands.registerCommand('TypedTest.watchTests', async () => {
     config.dispose()
-    config = setup(cwd, config.results)
+    config = setup(cwd, TestRunner, findTsConfig, findTypedTestConfig, config.results)
 
     const {
       fileGlobs,
@@ -115,7 +117,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(runTestsDisposable, watchTestsDisposable, stopWatchingDisposable)
 }
 
-function setup(cwd: string, previousResults: Results | null = null) {
+function setup(
+  cwd: string,
+  TestRunner: { new (...args: any[]): any },
+  findTsConfig: typeof import('@typed/test/lib/api').findTsConfig,
+  findTypedTestConfig: typeof import('@typed/test/lib/api').findTypedTestConfig,
+  previousResults: import('@typed/test/lib/api').Results | null = null
+) {
   const { compilerOptions, files = [], include = [], exclude = EXCLUDE } = findTsConfig(cwd)
   const fileGlobs = [...files, ...include, ...exclude.map(x => `!${x}`)]
   const typedTestConfig = findTypedTestConfig(compilerOptions, cwd)
@@ -167,7 +175,7 @@ function setup(cwd: string, previousResults: Results | null = null) {
 
     codeConsole.appendLine('')
     codeConsole.appendLine(`Typed Test ${new Date().toLocaleString()}`)
-    codeConsole.append(resultsToString(cwd, results))
+    codeConsole.append(resultsToString(results))
 
     disposables.forEach(dispose)
     vscode.window.visibleTextEditors.forEach(editor => editor && displayAndAdd(editor))

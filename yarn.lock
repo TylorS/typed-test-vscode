@@ -17,9 +17,9 @@
     "167" "0.36.0"
     assertion-error-diff "^1.0.0"
 
-"@typed/test@7.0.9":
-  version "7.0.9"
-  resolved "https://registry.yarnpkg.com/@typed/test/-/test-7.0.9.tgz#6fd4a376513b3d7aa28d2be485322a3973cb98bb"
+"@typed/test@7.1.2":
+  version "7.1.2"
+  resolved "https://registry.yarnpkg.com/@typed/test/-/test-7.1.2.tgz#bf7c8f86039a55bc426d4824d82d3849d4c54bc7"
   dependencies:
     "@typed/assertions" "1.1.0"
     chrome-launcher "0.10.2"
