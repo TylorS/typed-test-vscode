@@ -47,8 +47,10 @@ const dispose = (d: vscode.Disposable) => d.dispose()
 
 function findTypedTest(cwd: string) {
   try {
-    resolve('@typed/test', { basedir: cwd })
-  } catch {
+    // Users must have @typed/test installed locally.
+    return resolve('@typed/test', { basedir: cwd })
+  } catch  {
+    // For developing @typed/test extension
     return join(cwd, 'lib/index.js')
   }
 }
@@ -56,8 +58,9 @@ function findTypedTest(cwd: string) {
 export function activate(context: vscode.ExtensionContext) {
   const cwd = vscode.workspace.rootPath
   let config = setup(cwd)
-  const typedTestPath = findTypedTest(cwd)
-  const { watchTestMetadata, findTestMetadata } = require(typedTestPath)
+  const typedTestApiPath = findTypedTest(cwd).replace('index.js', 'api.js')
+  const { watchTestMetadata, findTestMetadata } = require(typedTestApiPath)
+  logger.log('Typed Test: Activated!')
 
   const runTestsDisposable = vscode.commands.registerCommand('TypedTest.runTests', async () => {
     config.dispose()
@@ -106,7 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const stopWatchingDisposable = vscode.commands.registerCommand('TypedTest.stopWatching', () => {
     config.dispose()
-    logger.log(`Typed Test: Watcher Stopped.`)
+    logger.log(`Watcher Stopped.`)
   })
 
   context.subscriptions.push(runTestsDisposable, watchTestsDisposable, stopWatchingDisposable)
