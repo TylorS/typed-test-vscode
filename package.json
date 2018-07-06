@@ -47,6 +47,7 @@
     "test": "npm run compile && node ./node_modules/vscode/bin/test"
   },
   "devDependencies": {
+    "@types/clear-require": "^2.0.0",
     "@types/glob": "5.0.35",
     "@types/mocha": "^2.2.42",
     "@types/node": "^7.0.43",
@@ -57,7 +58,9 @@
   },
   "dependencies": {
     "@typed/test": "7.1.2",
+    "clear-require": "2.0.0",
     "glob": "7.1.2",
-    "resolve": "1.8.1"
+    "resolve": "1.8.1",
+    "typed-colors": "^1.0.0"
   }
 }

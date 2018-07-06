@@ -18,6 +18,7 @@ import {
 import { strip } from 'typed-colors'
 import { join } from 'path'
 import { sync } from 'glob'
+import { all } from 'clear-require'
 
 const pipe = <A, B, C>(f: (a: A) => B, g: (b: B) => C) => (value: A): C => g(f(value))
 
@@ -54,19 +55,17 @@ function findTypedTest(cwd: string) {
 export function activate(context: vscode.ExtensionContext) {
   const cwd = vscode.workspace.rootPath
   const typedTestApiPath = findTypedTest(cwd).replace('index.js', 'api.js')
-  const {
-    watchTestMetadata,
-    findTestMetadata,
-    TestRunner,
-    findTsConfig,
-    findTypedTestConfig
-  }: typeof import('@typed/test/lib/api') = require(typedTestApiPath)
-  let config = setup(cwd, TestRunner, findTsConfig, findTypedTestConfig)
+  let config = setup(cwd, typedTestApiPath)
+  let firstRun = true
   logger.log('Typed Test: Activated!')
 
   const runTestsDisposable = vscode.commands.registerCommand('TypedTest.runTests', async () => {
-    config.dispose()
-    config = setup(cwd, TestRunner, findTsConfig, findTypedTestConfig)
+    if (!firstRun) {
+      config.dispose()
+      config = setup(cwd, typedTestApiPath)
+    }
+
+    firstRun = false
 
     const {
       fileGlobs,
@@ -75,25 +74,30 @@ export function activate(context: vscode.ExtensionContext) {
       options: { mode }
     } = config
     const sourcePaths = flatten(fileGlobs.map(x => sync(x, { cwd })))
-    const metadata = await findTestMetadata(cwd, sourcePaths, compilerOptions, mode)
+    const metadata = await config.findTestMetadata(cwd, sourcePaths, compilerOptions, mode)
 
     await handleMetadata(metadata)
   })
 
   const watchTestsDisposable = vscode.commands.registerCommand('TypedTest.watchTests', async () => {
-    config.dispose()
-    config = setup(cwd, TestRunner, findTsConfig, findTypedTestConfig, config.results)
+    if (!firstRun) {
+      config.dispose()
+      config = setup(cwd, typedTestApiPath, config.results)
+    }
+
+    firstRun = false
 
     const {
       fileGlobs,
       compilerOptions,
       handleMetadata,
-      addWatcherDisposable,
       options: { mode },
-      results: { removeFilePath }
+      results: { removeFilePath },
+      addWatcherDisposable
     } = config
+    
     await logger.log('Starting file watcher...')
-    const watcher = await watchTestMetadata(
+    const watcher = await config.watchTestMetadata(
       cwd,
       fileGlobs,
       compilerOptions,
@@ -104,9 +108,7 @@ export function activate(context: vscode.ExtensionContext) {
     )
 
     const watcherDisposable: vscode.Disposable = { dispose: () => watcher.close() }
-
     addWatcherDisposable(watcherDisposable)
-    context.subscriptions.push(watcherDisposable)
   })
 
   const stopWatchingDisposable = vscode.commands.registerCommand('TypedTest.stopWatching', () => {
@@ -114,16 +116,24 @@ export function activate(context: vscode.ExtensionContext) {
     logger.log(`Watcher Stopped.`)
   })
 
-  context.subscriptions.push(runTestsDisposable, watchTestsDisposable, stopWatchingDisposable)
+  context.subscriptions.push(runTestsDisposable, watchTestsDisposable, stopWatchingDisposable, {
+    dispose: () => config.dispose()
+  })
 }
 
 function setup(
   cwd: string,
-  TestRunner: { new (...args: any[]): any },
-  findTsConfig: typeof import('@typed/test/lib/api').findTsConfig,
-  findTypedTestConfig: typeof import('@typed/test/lib/api').findTypedTestConfig,
+  typedTestApiPath: string,
   previousResults: import('@typed/test/lib/api').Results | null = null
 ) {
+  all()
+  const {
+    watchTestMetadata,
+    findTestMetadata,
+    TestRunner,
+    findTsConfig,
+    findTypedTestConfig
+  }: typeof import('@typed/test/lib/api') = require(typedTestApiPath)
   const { compilerOptions, files = [], include = [], exclude = EXCLUDE } = findTsConfig(cwd)
   const fileGlobs = [...files, ...include, ...exclude.map(x => `!${x}`)]
   const typedTestConfig = findTypedTestConfig(compilerOptions, cwd)
@@ -157,8 +167,6 @@ function setup(
   ]
 
   const handleMetadata = async (metadata: TestMetadata[]) => {
-    await logger.log('Running tests...')
-
     const codeConsole = vscode.debug.activeDebugConsole
     const [{ results }, processResults] = await runTests(metadata)
     const stats = updateStats(results)
@@ -194,7 +202,9 @@ function setup(
       contextDisposables.forEach(dispose)
       watcherDisposables.forEach(dispose)
     },
-    addWatcherDisposable: (disposable: vscode.Disposable) => watcherDisposables.push(disposable)
+    addWatcherDisposable: (disposable: vscode.Disposable) => watcherDisposables.push(disposable),
+    watchTestMetadata,
+    findTestMetadata
   }
 }
 
