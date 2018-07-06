@@ -2,7 +2,7 @@
   "name": "typed-test-vscode",
   "displayName": "Typed Test",
   "description": "Testing made simple.",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "publisher": "tylors",
   "author": {
     "email": "tlsteinberger167@gmail.com",
