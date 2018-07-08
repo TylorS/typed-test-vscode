@@ -52,17 +52,17 @@ function findTypedTest(cwd: string) {
   }
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   const cwd = vscode.workspace.rootPath
   const typedTestApiPath = findTypedTest(cwd).replace('index.js', 'api.js')
-  let config = setup(cwd, typedTestApiPath)
+  let config = await setup(cwd, typedTestApiPath)
   let firstRun = true
   logger.log('Typed Test: Activated!')
 
   const runTestsDisposable = vscode.commands.registerCommand('TypedTest.runTests', async () => {
     if (!firstRun) {
       config.dispose()
-      config = setup(cwd, typedTestApiPath)
+      config = await setup(cwd, typedTestApiPath)
     }
 
     firstRun = false
@@ -82,7 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
   const watchTestsDisposable = vscode.commands.registerCommand('TypedTest.watchTests', async () => {
     if (!firstRun) {
       config.dispose()
-      config = setup(cwd, typedTestApiPath, config.results)
+      config = await setup(cwd, typedTestApiPath, config.results)
     }
 
     firstRun = false
@@ -91,12 +91,32 @@ export function activate(context: vscode.ExtensionContext) {
       fileGlobs,
       compilerOptions,
       handleMetadata,
-      options: { mode },
+      options,
       results: { removeFilePath },
-      addWatcherDisposable
+      addWatcherDisposable,
+      watchBrowserTests,
+      handleResults,
+      handleTypeCheckResults
     } = config
-    
+    const { mode } = options
+
     await logger.log('Starting file watcher...')
+
+    if (mode === 'browser') {
+      const disposable = await watchBrowserTests(
+        fileGlobs,
+        compilerOptions,
+        options,
+        cwd,
+        logger,
+        ({ results }) => handleResults(results),
+        err => logger.error(err.stack || err.message),
+        handleTypeCheckResults
+      )
+
+      addWatcherDisposable(disposable)
+    }
+
     const watcher = await config.watchTestMetadata(
       cwd,
       fileGlobs,
@@ -121,7 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
   })
 }
 
-function setup(
+async function setup(
   cwd: string,
   typedTestApiPath: string,
   previousResults: import('@typed/test/lib/api').Results | null = null
@@ -132,12 +152,14 @@ function setup(
     findTestMetadata,
     TestRunner,
     findTsConfig,
-    findTypedTestConfig
+    findTypedTestConfig,
+    watchBrowserTests
   }: typeof import('@typed/test/lib/api') = require(typedTestApiPath)
+  logger.log('Finding configurations...')
   const { compilerOptions, files = [], include = [], exclude = EXCLUDE } = findTsConfig(cwd)
   const fileGlobs = [...files, ...include, ...exclude.map(x => `!${x}`)]
   const typedTestConfig = findTypedTestConfig(compilerOptions, cwd)
-  const { options, results, runTests } = new TestRunner(
+  const { runTests, options, results } = new TestRunner(
     typedTestConfig,
     previousResults,
     cwd,
@@ -166,20 +188,12 @@ function setup(
     )
   ]
 
-  const handleMetadata = async (metadata: TestMetadata[]) => {
+  const handleResults = async (results: JsonResults[]) => {
     const codeConsole = vscode.debug.activeDebugConsole
-    const [{ results }, processResults] = await runTests(metadata)
+
     const stats = updateStats(results)
 
     await logger.log(strip(statsToString(stats)))
-
-    if (options.typeCheck) {
-      codeConsole.append(processResults.stdout)
-    }
-
-    if (options.typeCheck && processResults.exitCode > 0) {
-      codeConsole.append(processResults.stderr)
-    }
 
     codeConsole.appendLine('')
     codeConsole.appendLine(`Typed Test ${new Date().toLocaleString()}`)
@@ -189,12 +203,37 @@ function setup(
     vscode.window.visibleTextEditors.forEach(editor => editor && displayAndAdd(editor))
   }
 
+  const handleTypeCheckResults = (results: {
+    exitCode: number
+    stdout: string
+    stderr: string
+  }) => {
+    const codeConsole = vscode.debug.activeDebugConsole
+
+    if (options.typeCheck) {
+      codeConsole.append(results.stdout)
+    }
+
+    if (options.typeCheck && results.exitCode > 0) {
+      codeConsole.append(results.stderr)
+    }
+  }
+
+  const handleMetadata = async (metadata: TestMetadata[]) => {
+    const [{ results }, processResults] = await runTests(metadata)
+
+    handleTypeCheckResults(processResults)
+    handleResults(results)
+  }
+
   return {
     logger,
     results,
     runTests,
     options,
     handleMetadata,
+    handleResults,
+    handleTypeCheckResults,
     fileGlobs,
     compilerOptions,
     dispose: () => {
@@ -204,6 +243,7 @@ function setup(
     },
     addWatcherDisposable: (disposable: vscode.Disposable) => watcherDisposables.push(disposable),
     watchTestMetadata,
+    watchBrowserTests,
     findTestMetadata
   }
 }
