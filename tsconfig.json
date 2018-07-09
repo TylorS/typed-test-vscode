@@ -5,7 +5,8 @@
         "outDir": "out",
         "lib": [
             "dom",
-            "es6"
+            "es2015",
+            "esnext"
         ],
         "sourceMap": true,
         "rootDir": "src"

@@ -141,10 +141,13 @@ export async function activate(context: vscode.ExtensionContext) {
   })
 }
 
+
+type Results = import('@typed/test/lib/api').Results
+
 async function setup(
   cwd: string,
   typedTestApiPath: string,
-  previousResults: import('@typed/test/lib/api').Results | null = null
+  previousResults: Results | null = null
 ) {
   all()
   const {
