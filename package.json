@@ -56,10 +56,10 @@
     "vscode": "1.1.18"
   },
   "dependencies": {
-    "@typed/test": "7.2.1",
+    "@typed/test": "7.2.2",
     "clear-require": "2.0.0",
     "glob": "7.1.2",
     "resolve": "1.8.1",
-    "typed-colors": "^1.0.0"
+    "typed-colors": "1.0.0"
   }
 }

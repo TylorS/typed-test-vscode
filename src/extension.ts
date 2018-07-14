@@ -19,6 +19,7 @@ import { strip } from 'typed-colors'
 import { join } from 'path'
 import { sync } from 'glob'
 import { all } from 'clear-require'
+import { watch } from 'fs'
 
 const pipe = <A, B, C>(f: (a: A) => B, g: (b: B) => C) => (value: A): C => g(f(value))
 
@@ -55,92 +56,91 @@ function findTypedTest(cwd: string) {
 export async function activate(context: vscode.ExtensionContext) {
   const cwd = vscode.workspace.rootPath
   const typedTestApiPath = findTypedTest(cwd).replace('index.js', 'api.js')
-  let config = await setup(cwd, typedTestApiPath)
+  let configs = await setup(cwd, typedTestApiPath)
   let firstRun = true
   logger.log('Typed Test: Activated!')
 
   const runTestsDisposable = vscode.commands.registerCommand('TypedTest.runTests', async () => {
     if (!firstRun) {
-      config.dispose()
-      config = await setup(cwd, typedTestApiPath)
+      configs.forEach(dispose)
+      configs = await setup(cwd, typedTestApiPath)
     }
 
     firstRun = false
 
-    const {
-      fileGlobs,
-      compilerOptions,
-      handleMetadata,
-      options: { mode }
-    } = config
-    const sourcePaths = flatten(fileGlobs.map(x => sync(x, { cwd })))
-    const metadata = await config.findTestMetadata(cwd, sourcePaths, compilerOptions, mode)
+    configs.forEach(async config => {
+      const {
+        fileGlobs,
+        compilerOptions,
+        handleMetadata,
+        options: { mode }
+      } = config
+      const sourcePaths = flatten(fileGlobs.map(x => sync(x, { cwd })))
+      const metadata = await config.findTestMetadata(cwd, sourcePaths, compilerOptions, mode)
 
-    await handleMetadata(metadata)
+      await handleMetadata(metadata)
+    })
   })
 
   const watchTestsDisposable = vscode.commands.registerCommand('TypedTest.watchTests', async () => {
     if (!firstRun) {
-      config.dispose()
-      config = await setup(cwd, typedTestApiPath, config.results)
+      configs.forEach(dispose)
+      configs = await setup(cwd, typedTestApiPath)
     }
 
     firstRun = false
 
-    const {
-      fileGlobs,
-      compilerOptions,
-      handleMetadata,
-      options,
-      results: { removeFilePath },
-      addWatcherDisposable,
-      watchBrowserTests,
-      handleResults,
-      handleTypeCheckResults
-    } = config
-    const { mode } = options
-
-    await logger.log('Starting file watcher...')
-
-    if (mode === 'browser') {
-      const disposable = await watchBrowserTests(
+    configs.forEach(async config => {
+      const {
         fileGlobs,
         compilerOptions,
+        handleMetadata,
         options,
-        cwd,
-        logger,
-        ({ results }) => handleResults(results),
-        err => logger.error(err.stack || err.message),
+        results: { removeFilePath },
+        addWatcherDisposable,
+        watchBrowserTests,
+        handleResults,
         handleTypeCheckResults
-      )
+      } = config
+      const { mode } = options
+
+      await logger.log('Starting file watcher...')
+
+      const disposable =
+        mode === 'browser'
+          ? await watchBrowserTests(
+              fileGlobs,
+              compilerOptions,
+              options,
+              cwd,
+              logger,
+              ({ results }) => handleResults(results),
+              err => logger.error(err.stack || err.message),
+              handleTypeCheckResults
+            )
+          : await config.watchTestMetadata(
+              cwd,
+              fileGlobs,
+              compilerOptions,
+              mode,
+              logger,
+              removeFilePath,
+              handleMetadata
+            )
 
       addWatcherDisposable(disposable)
-    }
-
-    const watcher = await config.watchTestMetadata(
-      cwd,
-      fileGlobs,
-      compilerOptions,
-      mode,
-      logger,
-      removeFilePath,
-      handleMetadata
-    )
-
-    const watcherDisposable: vscode.Disposable = { dispose: () => watcher.close() }
-    addWatcherDisposable(watcherDisposable)
+    })
   })
 
   const stopWatchingDisposable = vscode.commands.registerCommand('TypedTest.stopWatching', () => {
-    config.dispose()
+    configs.forEach(dispose)
     logger.log(`Watcher Stopped.`)
   })
 
   context.subscriptions.push(runTestsDisposable, watchTestsDisposable, stopWatchingDisposable, {
-    dispose: () => config.dispose()
+    dispose: () => configs.forEach(dispose)
   })
 }
-
 
 type Results = import('@typed/test/lib/api').Results
 
@@ -155,100 +155,104 @@ async function setup(
     findTestMetadata,
     TestRunner,
     findTsConfig,
-    findTypedTestConfig,
+    findTypedTestConfigs,
     watchBrowserTests
   }: typeof import('@typed/test/lib/api') = require(typedTestApiPath)
   logger.log('Finding configurations...')
   const { compilerOptions, files = [], include = [], exclude = EXCLUDE } = findTsConfig(cwd)
-  const fileGlobs = [...files, ...include, ...exclude.map(x => `!${x}`)]
-  const typedTestConfig = findTypedTestConfig(compilerOptions, cwd)
-  const { runTests, options, results } = new TestRunner(
-    typedTestConfig,
-    previousResults,
-    cwd,
-    logger
-  )
-  const { getResults, updateResults } = results
-  const displayResults = setDecorationResults(getResults)
-  const watcherDisposables: Array<vscode.Disposable> = []
-  const disposables: Array<vscode.Disposable> = []
-  const addDisposables = (d: Array<vscode.Disposable>) => disposables.push(...d)
-  const displayAndAdd = pipe(
-    displayResults,
-    addDisposables
-  )
-  const updateStats = pipe(
-    pipe(
-      updateResults,
-      getTestResults
-    ),
-    getTestStats
-  )
-  const contextDisposables = [
-    vscode.window.onDidChangeActiveTextEditor(editor => editor && displayAndAdd(editor)),
-    vscode.window.onDidChangeVisibleTextEditors(editors =>
-      editors.forEach(editor => editor && displayAndAdd(editor))
+  const defaultFileGlobs = [...files, ...include, ...exclude.map(x => `!${x}`)]
+  const typedTestConfigs = findTypedTestConfigs(compilerOptions, cwd)
+
+  return typedTestConfigs.map(typedTestConfig => {
+    const { runTests, options, results } = new TestRunner(
+      typedTestConfig,
+      previousResults,
+      cwd,
+      logger
     )
-  ]
+    const fileGlobs = options.files.length > 0 ? options.files : defaultFileGlobs
+    const { getResults, updateResults } = results
+    const displayResults = setDecorationResults(getResults)
+    const watcherDisposables: Array<vscode.Disposable> = []
+    const disposables: Array<vscode.Disposable> = []
+    const addDisposables = (d: Array<vscode.Disposable>) => disposables.push(...d)
+    const displayAndAdd = pipe(
+      displayResults,
+      addDisposables
+    )
+    const updateStats = pipe(
+      pipe(
+        updateResults,
+        getTestResults
+      ),
+      getTestStats
+    )
+    const contextDisposables = [
+      vscode.window.onDidChangeActiveTextEditor(editor => editor && displayAndAdd(editor)),
+      vscode.window.onDidChangeVisibleTextEditors(editors =>
+        editors.forEach(editor => editor && displayAndAdd(editor))
+      )
+    ]
 
-  const handleResults = async (results: JsonResults[]) => {
-    const codeConsole = vscode.debug.activeDebugConsole
+    const handleResults = async (results: JsonResults[]) => {
+      const codeConsole = vscode.debug.activeDebugConsole
 
-    const stats = updateStats(results)
+      const stats = updateStats(results)
 
-    await logger.log(strip(statsToString(stats)))
+      await logger.log(strip(statsToString(stats)))
 
-    codeConsole.appendLine('')
-    codeConsole.appendLine(`Typed Test ${new Date().toLocaleString()}`)
-    codeConsole.append(resultsToString(results))
+      codeConsole.appendLine('')
+      codeConsole.appendLine(`Typed Test ${new Date().toLocaleString()}`)
+      codeConsole.append(resultsToString(results))
 
-    disposables.forEach(dispose)
-    vscode.window.visibleTextEditors.forEach(editor => editor && displayAndAdd(editor))
-  }
-
-  const handleTypeCheckResults = (results: {
-    exitCode: number
-    stdout: string
-    stderr: string
-  }) => {
-    const codeConsole = vscode.debug.activeDebugConsole
-
-    if (options.typeCheck) {
-      codeConsole.append(results.stdout)
-    }
-
-    if (options.typeCheck && results.exitCode > 0) {
-      codeConsole.append(results.stderr)
-    }
-  }
-
-  const handleMetadata = async (metadata: TestMetadata[]) => {
-    const [{ results }, processResults] = await runTests(metadata)
-
-    handleTypeCheckResults(processResults)
-    handleResults(results)
-  }
-
-  return {
-    logger,
-    results,
-    runTests,
-    options,
-    handleMetadata,
-    handleResults,
-    handleTypeCheckResults,
-    fileGlobs,
-    compilerOptions,
-    dispose: () => {
       disposables.forEach(dispose)
-      contextDisposables.forEach(dispose)
-      watcherDisposables.forEach(dispose)
-    },
-    addWatcherDisposable: (disposable: vscode.Disposable) => watcherDisposables.push(disposable),
-    watchTestMetadata,
-    watchBrowserTests,
-    findTestMetadata
-  }
+      vscode.window.visibleTextEditors.forEach(editor => editor && displayAndAdd(editor))
+    }
+
+    const handleTypeCheckResults = (results: {
+      exitCode: number
+      stdout: string
+      stderr: string
+    }) => {
+      const codeConsole = vscode.debug.activeDebugConsole
+
+      if (options.typeCheck) {
+        codeConsole.append(results.stdout)
+      }
+
+      if (options.typeCheck && results.exitCode > 0) {
+        codeConsole.append(results.stderr)
+      }
+    }
+
+    const handleMetadata = async (metadata: TestMetadata[]) => {
+      const [{ results }, processResults] = await runTests(metadata)
+
+      handleTypeCheckResults(processResults)
+      handleResults(results)
+    }
+
+    return {
+      logger,
+      results,
+      runTests,
+      options,
+      handleMetadata,
+      handleResults,
+      handleTypeCheckResults,
+      fileGlobs,
+      compilerOptions,
+      dispose: () => {
+        disposables.forEach(dispose)
+        contextDisposables.forEach(dispose)
+        watcherDisposables.forEach(dispose)
+      },
+      addWatcherDisposable: (disposable: vscode.Disposable) => watcherDisposables.push(disposable),
+      watchTestMetadata,
+      watchBrowserTests,
+      findTestMetadata
+    }
+  })
 }
 
 // this method is called when your extension is deactivated
